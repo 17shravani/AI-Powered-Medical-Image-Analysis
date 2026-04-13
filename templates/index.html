@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Medical Image Analysis</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; }
+        h1 { color: #2c3e50; margin-bottom: 20px; font-size: 24px; }
+        .upload-btn-wrapper { position: relative; overflow: hidden; display: inline-block; margin-bottom: 20px;}
+        .btn { border: 2px solid #3498db; color: #3498db; background-color: white; padding: 10px 20px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;}
+        .upload-btn-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
+        #analyze-btn { background-color: #3498db; color: white; border: none; padding: 12px 24px; margin-top:20px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.3s; width: 100%;}
+        #analyze-btn:hover { background-color: #2980b9; }
+        #result-box { margin-top: 30px; padding: 20px; border-radius: 8px; font-size: 18px; font-weight: bold; display: none; }
+        .success { background-color: #e8f8f5; color: #27ae60; border: 1px solid #27ae60; }
+        .danger { background-color: #fdedec; color: #c0392b; border: 1px solid #c0392b; }
+        #preview { margin-top: 20px; max-width: 100%; max-height: 250px; border-radius: 8px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Disease Detection</h1>
+    <p style="color: #7f8c8d; margin-bottom: 30px;">Upload a Chest X-Ray image for Pneumonia screening</p>
+    
+    <div class="upload-btn-wrapper">
+        <button class="btn">Choose a file</button>
+        <input type="file" id="image-upload" accept="image/*" onchange="previewImage(event)" />
+    </div>
+    
+    <br/>
+    <img id="preview" src="#" alt="Image Preview" />
+
+    <button id="analyze-btn" onclick="uploadImage()">Analyze Image</button>
+
+    <div id="result-box"></div>
+</div>
+
+<script>
+    function previewImage(event) {
+        const reader = new FileReader();
+        reader.onload = function(){
+            const output = document.getElementById('preview');
+            output.src = reader.result;
+            output.style.display = 'block';
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    }
+
+    async function uploadImage() {
+        const fileInput = document.getElementById('image-upload');
+        if (fileInput.files.length === 0) {
+            alert("Please select an image first.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", fileInput.files[0]);
+
+        const resultBox = document.getElementById('result-box');
+        const analyzeBtn = document.getElementById('analyze-btn');
+
+        analyzeBtn.innerText = "Analyzing...";
+        analyzeBtn.disabled = true;
+
+        try {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            
+            resultBox.style.display = 'block';
+            if(data.Error) {
+                resultBox.className = 'danger';
+                resultBox.innerText = "Error: " + data.Error;
+            } else {
+                if (data.Prediction.includes("Pneumonia")) {
+                    resultBox.className = 'danger';
+                } else {
+                    resultBox.className = 'success';
+                }
+                const confidenceStr = (data.Confidence * 100).toFixed(2);
+                resultBox.innerHTML = `Prediction: <b>${data.Prediction}</b><br>Confidence: ${confidenceStr}%`;
+            }
+        } catch (error) {
+            resultBox.style.display = 'block';
+            resultBox.className = 'danger';
+            resultBox.innerText = "Failed to connect to the server.";
+        }
+
+        analyzeBtn.innerText = "Analyze Image";
+        analyzeBtn.disabled = false;
+    }
+</script>
+
+</body>
+</html>
